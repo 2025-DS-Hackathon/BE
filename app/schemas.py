@@ -2,6 +2,18 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+# --- User ---
+class UserBase(BaseModel):
+    nickname: Optional[str]
+    user_type: Optional[str]
+
+class UserOut(UserBase):
+    user_id: int
+    email: Optional[str]
+
+    class Config:
+        orm_mode = True
+
 # --- Talent ---
 class TalentCreate(BaseModel):
     type: str  # 'Teach' or 'Learn'
