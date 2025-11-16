@@ -1,7 +1,53 @@
-from fastapi import APIRouter
+# app/routers/talents.py
+from typing import Optional
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app import models, schemas
+from app.deps import get_db, get_current_user  # 필요하면 get_active_user로 바꿔도 됨
 
 router = APIRouter()
+
 
 @router.get("/ping")
 def ping_talents():
     return {"area": "talents", "status": "ok"}
+
+
+@router.get("/my-summary", response_model=schemas.MyTalentSummaryResponse)
+def get_my_talent_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    메인 페이지용 재능 카드 요약 조회
+    - Learn(내가 배우고 싶은 것)
+    - Teach(내가 가르쳐줄 수 있는 것)
+    두 종류 중, 현재 로그인한 사용자가 등록한 것이 있다면
+    각각 1개씩 요약 정보를 반환한다.
+    """
+
+    # 현재 유저의 모든 Talent 조회
+    talents = (
+        db.query(models.Talent)
+        .filter(models.Talent.user_id == current_user.user_id)
+        .all()
+    )
+
+    learn_talent: Optional[models.Talent] = None
+    teach_talent: Optional[models.Talent] = None
+
+    for t in talents:
+        # type 필드에 "Learn" / "Teach" 저장된다고 가정
+        t_type = (t.type or "").lower()
+        if t_type == "learn" and learn_talent is None:
+            learn_talent = t
+        elif t_type == "teach" and teach_talent is None:
+            teach_talent = t
+
+    # Pydantic이 orm_mode 덕분에 SQLAlchemy 객체를 그대로 받아 변환해준다.
+    return schemas.MyTalentSummaryResponse(
+        learn=learn_talent,
+        teach=teach_talent,
+    )

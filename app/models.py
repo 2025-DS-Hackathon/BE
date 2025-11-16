@@ -1,3 +1,4 @@
+
 # app/models.py
 from sqlalchemy import (
     Column,
@@ -14,30 +15,49 @@ from sqlalchemy.orm import relationship
 from .db import Base
 
 
-# ===========================
-# USER TABLE
-# ===========================
 class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, index=True)
+
+    # 소셜 + 기본 정보
+    email = Column(String, nullable=True, unique=True)
     nickname = Column(String, nullable=False)
-    birth_year = Column(Integer, nullable=False)
-    user_type = Column(String, nullable=False)  # "YOUNG" / "SENIOR"
+
+    social_provider = Column(String, nullable=True)  
+    social_id = Column(String, nullable=True, unique=True)
+
+    hashed_password = Column(String, nullable=True)
+
+    # 출생연도 (서비스에서 직접 입력받음)
+    birth_year = Column(Integer, nullable=True)
+
+    # 세대 구분: YOUNG / SENIOR / MIDDLE / UNKNOWN
+    user_type = Column(String, nullable=False, default="UNKNOWN")
+
+    # 약관 관련
+    terms_agreed = Column(Boolean, default=False)
+    terms_agreed_at = Column(DateTime, nullable=True)
+    terms_version = Column(String, default="v1")
+
+    # 기존 필드들 그대로 유지
     noshow_count = Column(Integer, default=0)
     user_status = Column(String, default="NORMAL")  # NORMAL / SUSPENDED / DELETED
     is_matching_available = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
 
-    # 선택: 편의를 위한 관계 설정 (필수는 아님)
-    talents = relationship("Talent", back_populates="user", cascade="all, delete-orphan")
+    # 관계
+    talents = relationship(
+        "Talent", back_populates="user", cascade="all, delete-orphan"
+    )
     sent_messages = relationship("Message", back_populates="sender")
     notifications = relationship("Notification", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.user_id}, nickname={self.nickname})>"
-
 
 # ===========================
 # TALENT TABLE
@@ -80,7 +100,7 @@ class MatchingQueue(Base):
     confirmed_at = Column(DateTime, nullable=True)
     canceled_at = Column(DateTime, nullable=True)
 
-    # 관계 (필요하면 사용, 안 써도 상관 없음)
+    # 관계
     user_a = relationship("User", foreign_keys=[user_a_id], backref="matches_as_a")
     user_b = relationship("User", foreign_keys=[user_b_id], backref="matches_as_b")
     messages = relationship("Message", back_populates="match", cascade="all, delete-orphan")
