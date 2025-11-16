@@ -73,6 +73,7 @@ class Talent(Base):
     title = Column(String, nullable=False)
     tags = Column(String, nullable=True)
     description = Column(Text, nullable=True)
+    
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", back_populates="talents")

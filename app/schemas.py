@@ -1,6 +1,6 @@
 # app/schemas.py
 from enum import Enum
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 
 # ---- User 관련 스키마 ----
@@ -96,3 +96,46 @@ class MatchStartResponse(BaseModel):
 class TodayMatchStats(BaseModel):
     date: str              # "YYYY-MM-DD"
     matched_pairs: int     # 오늘 CONFIRMED 된 매칭 수
+    
+# ------ 재능 카테고리 ------
+class TalentCategory(str, Enum):
+    DIGITAL_IT = "디지털/IT"
+    COOKING = "요리/생활"
+    HOBBY = "취미/예술"
+    JOB_EXPERIENCE = "직무/경험"
+    HEALTH_SPORT = "건강/운동"
+
+# ------ 재능 타입 ------
+class TalentType(str, Enum):
+    TEACH = "Teach"
+    LEARN = "Learn"
+
+# ------ 재능 생성 요청 ------
+class TalentCreate(BaseModel):
+    type: TalentType
+    category: TalentCategory
+    title: str = Field(..., min_length=1)
+    tags: Optional[str] = None  # 쉼표로 구분된 최대 3개 키워드
+    description: Optional[str] = Field(default=None, max_length=300)
+
+    @validator("tags")
+    def check_tags(cls, v):
+        if not v:
+            return v
+        tag_list = [t.strip() for t in v.split(",") if t.strip()]
+        if len(tag_list) > 3:
+            raise ValueError("태그는 최대 3개까지 입력 가능합니다.")
+        return ",".join(tag_list)
+
+# ------ 재능 생성 응답 ------
+class TalentOut(BaseModel):
+    talent_id: int
+    user_id: int
+    type: TalentType
+    category: TalentCategory
+    title: str
+    tags: Optional[str]
+    description: Optional[str]
+
+    class Config:
+        orm_mode = True

@@ -1,22 +1,23 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.models import Talent as DBTalent, User as DBUser
-from app.schemas import TalentCreate
+from app.models import Talent as DBTalent, User
+from app import models, schemas
 
 #재능 생성
-def create_talent(db: Session, talent: TalentCreate, user_id: int) -> DBTalent:
-    db_talent = DBTalent(
+def create_talent(db: Session, talent: schemas.TalentCreate, user_id: int):
+    db_talent = models.Talent(
         user_id=user_id,
-        title=talent.title,
-        description=talent.description,
+        type=talent.type,
         category=talent.category,
-        talent_type=talent.talent_type,
-        tags=talent.tags
+        title=talent.title,
+        tags=talent.tags,
+        description=talent.description
     )
     db.add(db_talent)
     db.commit()
-    db.refresh()
+    db.refresh(db_talent)
     return db_talent
+
 
 #사용자별 재능 목록 조회
 def get_talents_by_user(db: Session, user_id: int) -> list[DBTalent]:
