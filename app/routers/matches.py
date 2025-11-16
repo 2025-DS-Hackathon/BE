@@ -1,9 +1,8 @@
-from fastapi import APIRouter
-from fastapi import Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.deps import get_db, get_current_user
-from app.schemas import MatchRequest, MatchQueue, MatchAnswer, MatchResult
+from app.schemas import MatchRequestIn, MatchOut, MatchAnswerIn  # 수정됨
 from app.models import User as DBUser, MatchingQueue as DBMatchingQueue
 from app.crud import match as match_crud 
 
@@ -14,9 +13,9 @@ def ping_matches():
     return {"area": "matches", "status": "ok"}
 
 # 1. 매칭 요청 
-@router.post("/request", response_model=MatchQueue, summary="재능 연결 찾기 버튼 클릭 (매칭 대기열 등록)")
+@router.post("/request", response_model=MatchOut, summary="재능 연결 찾기 버튼 클릭 (매칭 대기열 등록)")
 def request_match(
-    match_request: MatchRequest,
+    match_request: MatchRequestIn,
     db: Session = Depends(get_db),
     current_user: DBUser = Depends(get_current_user) 
 ):
@@ -38,11 +37,11 @@ def request_match(
     
     return db_match
 
-#매칭 합의 처리
-@router.post("/{match_id}/answer", response_model=MatchResult, summary="매칭 합의 여부 결정 (O/X)")
+# 매칭 합의 처리
+@router.post("/{match_id}/answer", response_model=MatchOut, summary="매칭 합의 여부 결정 (O/X)")
 def answer_match(
     match_id: int,
-    answer: MatchAnswer,
+    answer: MatchAnswerIn,
     db: Session = Depends(get_db),
     current_user: DBUser = Depends(get_current_user) 
 ):
@@ -51,8 +50,8 @@ def answer_match(
     if not db_match:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found.")
         
-    is_requester = (db_match.requester_id == current_user.id)
-    is_owner = (db_match.owner_id == current_user.id)
+    is_requester = (db_match.user_a_id == current_user.id)  # DB 컬럼명 기준으로 수정 가능
+    is_owner = (db_match.user_b_id == current_user.id)
     
     if not is_requester and not is_owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 거부: 해당 매칭의 당사자가 아닙니다.")
@@ -62,7 +61,7 @@ def answer_match(
             db=db,
             match_id=match_id,
             user_id=current_user.id,
-            agreement=answer.agreement,
+            agreement=answer.consent,
             is_requester=is_requester
         )
     except (ValueError, PermissionError) as e:
@@ -76,9 +75,11 @@ def answer_match(
     else:
         message = "합의 내용이 저장되었습니다. 상대방의 응답을 기다리는 중입니다."
 
-    return MatchResult(
+    return MatchOut(
         match_id=match_id,
         status=final_status,
-        message=message
+        a_consent=updated_match.a_consent,
+        b_consent=updated_match.b_consent,
+        requested_at=updated_match.requested_at,
+        shared_category=updated_match.shared_category
     )
-    
