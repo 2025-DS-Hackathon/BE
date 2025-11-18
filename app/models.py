@@ -1,4 +1,3 @@
-
 # app/models.py
 from sqlalchemy import (
     Column,
@@ -15,6 +14,9 @@ from sqlalchemy.orm import relationship
 from .db import Base
 
 
+# ===========================
+# USER TABLE
+# ===========================
 class User(Base):
     __tablename__ = "users"
 
@@ -24,9 +26,11 @@ class User(Base):
     email = Column(String, nullable=True, unique=True)
     nickname = Column(String, nullable=False)
 
-    social_provider = Column(String, nullable=True)  
+    # 소셜 로그인 정보 (카카오)
+    social_provider = Column(String, nullable=True)
     social_id = Column(String, nullable=True, unique=True)
 
+    # (ID/PW 로그인 확장 대비)
     hashed_password = Column(String, nullable=True)
 
     # 출생연도 (서비스에서 직접 입력받음)
@@ -40,7 +44,7 @@ class User(Base):
     terms_agreed_at = Column(DateTime, nullable=True)
     terms_version = Column(String, default="v1")
 
-    # 기존 필드들 그대로 유지
+    # 기타 상태
     noshow_count = Column(Integer, default=0)
     user_status = Column(String, default="NORMAL")  # NORMAL / SUSPENDED / DELETED
     is_matching_available = Column(Boolean, default=True)
@@ -58,6 +62,7 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.user_id}, nickname={self.nickname})>"
+
 
 # ===========================
 # TALENT TABLE
@@ -91,7 +96,9 @@ class MatchingQueue(Base):
     user_a_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     user_b_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
 
-    status = Column(String, default="PENDING")  # PENDING / CONFIRMED / CANCELED
+    # PENDING(대기) / CONFIRMED(짝 찾음, 합의 대기) /
+    # SUCCESS(양쪽 O, 최종 매칭) / CANCELED(만료/취소)
+    status = Column(String, default="PENDING")
     a_consent = Column(Boolean, nullable=True)
     b_consent = Column(Boolean, nullable=True)
     shared_category = Column(String, nullable=True)
@@ -103,7 +110,9 @@ class MatchingQueue(Base):
     # 관계
     user_a = relationship("User", foreign_keys=[user_a_id], backref="matches_as_a")
     user_b = relationship("User", foreign_keys=[user_b_id], backref="matches_as_b")
-    messages = relationship("Message", back_populates="match", cascade="all, delete-orphan")
+    messages = relationship(
+        "Message", back_populates="match", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Match(id={self.match_id}, status={self.status})>"
@@ -139,9 +148,18 @@ class Notification(Base):
     notif_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
 
-    type = Column(String, nullable=False)       # MATCH_SUCCESS / MESSAGE / SYSTEM / MATCH_FAIL ...
+    # type 예시:
+    #  - NEW_MESSAGE      : 새 쪽지
+    #  - MATCH_FOUND      : 대기열에서 짝을 찾았을 때 (합의 대기)
+    #  - MATCH_SUCCESS    : 양쪽 O, 최종 매칭 확정
+    #  - MATCH_FAIL       : 24시간 만료로 매칭 실패
+    #  - MATCH_CANCELED   : X 눌러서 매칭 취소
+    type = Column(String, nullable=False)
+
     content = Column(String, nullable=False)
+    # 클릭 시 프론트에서 이동할 경로 (예: "/messages/123")
     link_path = Column(String, nullable=True)
+
     is_read = Column(Boolean, default=False)
     timestamp = Column(DateTime, server_default=func.now())
 

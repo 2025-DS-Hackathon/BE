@@ -10,7 +10,9 @@ from app.deps import get_db, get_current_user
 router = APIRouter()
 
 
+# ------------------------------
 # 1) 내 알림 리스트 조회
+# ------------------------------
 @router.get("/", response_model=List[schemas.NotificationRead])
 def list_notifications(
     db: Session = Depends(get_db),
@@ -19,7 +21,6 @@ def list_notifications(
     """
     현재 로그인한 사용자의 알림 목록 조회
     - 기본: 최신 순 정렬
-    - 추후: limit/offset 등 페이징 파라미터 추가 가능
     """
     notifications = (
         db.query(models.Notification)
@@ -30,7 +31,9 @@ def list_notifications(
     return notifications
 
 
-# 2) 안 읽은 알림 개수 조회
+# ------------------------------
+# 2) 안 읽은 알림 개수 조회 (헤더 뱃지용)
+# ------------------------------
 @router.get("/unread-count", response_model=schemas.NotificationUnreadCount)
 def get_unread_count(
     db: Session = Depends(get_db),
@@ -43,14 +46,41 @@ def get_unread_count(
         db.query(models.Notification)
         .filter(
             models.Notification.user_id == current_user.user_id,
-            models.Notification.is_read == False,  # noqa: E712
+            models.Notification.is_read.is_(False),
         )
         .count()
     )
     return schemas.NotificationUnreadCount(unread_count=count)
 
 
-# 3) 단일 알림 읽음 처리 (선택 기능)
+# ------------------------------
+# 3) 알림 전체 읽음 처리 (알림 페이지 진입 시)
+# ------------------------------
+@router.patch("/mark-all-read", response_model=schemas.NotificationUnreadCount)
+def mark_all_read(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    알림 페이지를 열었을 때 한 번 호출:
+    - 해당 사용자의 모든 미확인(is_read=False) 알림을 읽음 상태로 변경
+    """
+    (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.user_id == current_user.user_id,
+            models.Notification.is_read.is_(False),
+        )
+        .update({models.Notification.is_read: True})
+    )
+    db.commit()
+    # 모두 읽음 처리했으니 항상 0 반환
+    return schemas.NotificationUnreadCount(unread_count=0)
+
+
+# ------------------------------
+# 4) 단일 알림 읽음 처리 (알림 하나 클릭했을 때)
+# ------------------------------
 @router.patch("/{notif_id}/read", response_model=schemas.NotificationRead)
 def mark_notification_read(
     notif_id: int,

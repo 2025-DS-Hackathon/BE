@@ -15,7 +15,7 @@ from app.deps import get_db, create_access_token
 
 router = APIRouter()
 
-# 🔐 환경변수에서 카카오 앱 정보 가져오기
+# 환경변수에서 카카오 앱 정보 가져오기
 KAKAO_CLIENT_ID: str = os.getenv("KAKAO_CLIENT_ID", "")
 KAKAO_REDIRECT_URI: str = os.getenv("KAKAO_REDIRECT_URI", "")
 
