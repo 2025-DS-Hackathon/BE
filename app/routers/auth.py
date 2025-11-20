@@ -135,8 +135,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
             nickname=nickname,
             email=email,
             birth_year=birth_year,
-            user_type="YOUNG",  # 기본값, 나중에 프로필 수정으로 변경 가능
-            # 카카오 단일 로그인이라 비밀번호는 사용 X
+            user_type="UNKNOWN",  
             hashed_password=None,
         )
         db.add(user)
