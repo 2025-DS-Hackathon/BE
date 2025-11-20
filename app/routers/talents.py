@@ -1,19 +1,40 @@
 # app/routers/talents.py
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import models, schemas
-from app.deps import get_db, get_current_user  # 필요하면 get_active_user로 바꿔도 됨
+from app.deps import get_db, get_current_user
 
 router = APIRouter()
 
 
 @router.get("/ping")
 def ping_talents():
-    return {"area": "talents", "status": "ok"}
+    return {"area": "talents", "status": "ok"}@router.post("", response_model=schemas.TalentOut)
 
+@router.post("", response_model=schemas.TalentOut)
+def create_my_talent(
+    talent: schemas.TalentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not current_user.terms_agreed:
+        raise HTTPException(status_code=403, detail="약관에 동의해야 재능 등록이 가능합니다.")
+
+    new_talent = models.Talent(
+        user_id=current_user.user_id,
+        type=talent.type.value,
+        category=talent.category.value,
+        title=talent.title,
+        tags=talent.tags,          # validator에서 쉼표 처리됨
+        description=talent.description
+    )
+    db.add(new_talent)
+    db.commit()
+    db.refresh(new_talent)
+    return new_talent
 
 @router.get("/my-summary", response_model=schemas.MyTalentSummaryResponse)
 def get_my_talent_summary(

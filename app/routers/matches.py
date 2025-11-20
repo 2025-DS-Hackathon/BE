@@ -14,7 +14,6 @@ from app.db import SessionLocal
 
 router = APIRouter()
 
-
 # ------------------------------
 # 1) 랜덤 매칭 시작 (MAIN-2310, 2320)
 # ------------------------------
