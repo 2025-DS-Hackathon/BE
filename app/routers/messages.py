@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, or_, desc
+from sqlalchemy.orm import Session
+from sqlalchemy import or_, desc
 
 from app import models, schemas
 from app.deps import get_db, get_active_user
