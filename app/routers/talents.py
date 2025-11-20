@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # app/routers/talents.py
 from typing import Optional
 
@@ -6,12 +7,22 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.deps import get_db, get_current_user
+=======
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.db import get_db
+from app.deps import get_current_user
+from app.schemas import TalentCreate, TalentResponse
+from app.models import User as DBUser
+from .talents import create_talent, get_talents_by_user
+>>>>>>> ebc8d29ebdaf42a934c93d916719e2fc48437fad
 
-router = APIRouter()
+router = APIRouter(prefix="/talents", tags=["Talents"])
 
 
 @router.get("/ping")
 def ping_talents():
+<<<<<<< HEAD
     return {"area": "talents", "status": "ok"}@router.post("", response_model=schemas.TalentOut)
 
 @router.post("", response_model=schemas.TalentOut)
@@ -72,3 +83,23 @@ def get_my_talent_summary(
         learn=learn_talent,
         teach=teach_talent,
     )
+=======
+    return {"area": "talents", "status": "ok"}
+
+# 재능 생성
+@router.post("", response_model=TalentResponse)
+def create_my_talent(
+    talent: TalentCreate,
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
+):
+    return create_talent(db, talent, current_user.id)
+
+# 내 재능 목록 조회
+@router.get("/me", response_model=list[TalentResponse])
+def read_my_talents(
+    db: Session = Depends(get_db),
+    current_user: DBUser = Depends(get_current_user)
+):
+    return get_talents_by_user(db, current_user.id)
+>>>>>>> ebc8d29ebdaf42a934c93d916719e2fc48437fad
