@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.deps import get_db, get_current_user
 
+# 팀원 코드까지 합쳐서 prefix / tags 넣은 버전
 router = APIRouter(prefix="/talents", tags=["Talents"])
 
 
@@ -33,10 +34,10 @@ def create_my_talent(
 
     new_talent = models.Talent(
         user_id=current_user.user_id,
-        type=talent.type.value,         # Enum → 문자열
-        category=talent.category.value, # Enum → 문자열
+        type=talent.type.value,          # Enum → 문자열
+        category=talent.category.value,  # Enum → 문자열
         title=talent.title,
-        tags=talent.tags,               # 쉼표 처리 등은 Pydantic validator에서
+        tags=talent.tags,                # validator에서 쉼표 처리됨
         description=talent.description,
     )
     db.add(new_talent)
@@ -66,7 +67,7 @@ def get_my_talent_summary(
     teach_talent: Optional[models.Talent] = None
 
     for t in talents:
-        t_type = (t.type or "").lower()  # "Learn"/"Teach" 가정
+        t_type = (t.type or "").lower()  # "learn"/"teach" 가정
         if t_type == "learn" and learn_talent is None:
             learn_talent = t
         elif t_type == "teach" and teach_talent is None:

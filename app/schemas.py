@@ -3,6 +3,10 @@ from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, validator
+from typing import Optional, List
+from datetime import datetime
+
 
 # ===========================
 # USER 관련 스키마
@@ -104,6 +108,17 @@ class MatchStartResult(str, Enum):
     MIDDLE_USER = "MIDDLE_USER"
     NO_TALENT = "NO_TALENT"
     MATCHED_IMMEDIATELY = "MATCHED_IMMEDIATELY"
+    # Learn / Teach 카드가 없으면 None
+    learn: Optional[TalentSummary] = None
+    teach: Optional[TalentSummary] = None
+
+# ------ 매칭 시작 응답 스키마 (MAIN-2310 ~ 2320) ------
+class MatchStartResult(str, Enum):
+    QUEUED = "QUEUED"                      # 대기열에 정상 등록
+    ALREADY_WAITING = "ALREADY_WAITING"   # 이미 대기 중
+    MIDDLE_USER = "MIDDLE_USER"           # 중년(서비스 대상 아님)
+    NO_TALENT = "NO_TALENT"               # 재능 카드 미등록
+    MATCHED_IMMEDIATELY = "MATCHED_IMMEDIATELY"  # 바로 매칭 성사
 
 
 class MatchStartResponse(BaseModel):
@@ -126,6 +141,14 @@ class MatchAgreementResponse(BaseModel):
     message: str
 
 
+    match_id: Optional[int] = None   # 바로 매칭 성사되었거나, 대기열 row id
+
+
+# ------ 매칭 통계 (MAIN-2400: 오늘 몇 팀 매칭됐는지) ------
+class TodayMatchStats(BaseModel):
+    date: str              # "YYYY-MM-DD"
+    matched_pairs: int     # 오늘 CONFIRMED 된 매칭 수
+    
 # ------ 재능 카테고리 ------
 class TalentCategory(str, Enum):
     DIGITAL_IT = "디지털/IT"
@@ -185,6 +208,7 @@ class MatchAnswerIn(BaseModel):
     # 현재 사용자가 선택한 동의 여부 (O -> true, X -> false)
     consent: bool
 
+# ----- 매칭 응답  ------        
 class MatchOut(BaseModel):
     match_id: int
     user_a_id: int
@@ -193,6 +217,8 @@ class MatchOut(BaseModel):
     requested_at: datetime
     a_consent: bool
     b_consent: bool
+    a_consent: Optional[bool]
+    b_consent: Optional[bool]
     shared_category: Optional[str]
 
     class Config:
@@ -225,3 +251,46 @@ class NotificationOut(BaseModel):
 
     class Config:
         orm_mode = True
+# -----   ------
+class ConsentChoice(str, Enum):
+    YES = "O"
+    NO = "X"
+
+class MatchConsentRequest(BaseModel):
+    choice: ConsentChoice
+
+class MatchConsentResponse(BaseModel):
+    result: str
+    message: str
+    
+#--- 쪽지 ---
+class ChatRoomSummary(BaseModel):
+    room_id: int
+    partner_nickname: str
+    partner_profile_image: Optional[str]
+    last_message: str
+    last_message_time: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+class MessageItem(BaseModel):
+    message_id: int
+    sender_id: int
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChatRoomDetail(BaseModel):
+    room_id: int
+    partner_nickname: str
+    partner_profile_image: Optional[str]
+    shared_category: str
+    messages: List[MessageItem]
+    
+#---- 전송 요청 -----
+class SendMessageRequest(BaseModel):
+    content: str

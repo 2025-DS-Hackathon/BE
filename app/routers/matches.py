@@ -437,3 +437,138 @@ def register_periodic_task(app: FastAPI) -> None:
     def _start_worker():
         t = threading.Thread(target=worker, daemon=True)
         t.start()
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+# -------------------------------------------
+# 7) 매칭 합의 여부 처리 API
+# -------------------------------------------
+@router.post("/{match_id}/consent", response_model=schemas.MatchConsentResponse)
+def submit_match_consent(
+    match_id: int,
+    request: schemas.MatchConsentRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_active_user)
+):
+    """
+    매칭 합의 여부(O/X)를 제출하는 API.
+    - a_consent 또는 b_consent 저장
+    - 둘 중 하나라도 X → 즉시 취소
+    - 둘 다 O → 최종 확정
+    """
+
+    match = db.query(models.MatchingQueue).filter(
+        models.MatchingQueue.match_id == match_id
+    ).first()
+
+    if not match:
+        return schemas.MatchConsentResponse(
+            result="NOT_FOUND",
+            message="해당 매칭 정보를 찾을 수 없습니다."
+        )
+
+    # 본인이 user_a인지 user_b인지 판단
+    if current_user.user_id == match.user_a_id:
+        target_field = "a_consent"
+    elif current_user.user_id == match.user_b_id:
+        target_field = "b_consent"
+    else:
+        return schemas.MatchConsentResponse(
+            result="FORBIDDEN",
+            message="이 매칭의 당사자가 아닙니다."
+        )
+
+    # 이미 답변한 경우 방지
+    if getattr(match, target_field) is not None:
+        return schemas.MatchConsentResponse(
+            result="ALREADY_ANSWERED",
+            message="이미 합의 여부를 제출하셨습니다."
+        )
+
+    # 답변 저장
+    setattr(match, target_field, request.choice.value)
+    db.commit()
+    db.refresh(match)
+
+    # ------------------------------
+    # 1) 사용자가 X → 즉시 취소
+    # ------------------------------
+    if request.choice == schemas.ConsentChoice.NO:
+        match.status = "CANCELED"
+        match.canceled_at = datetime.utcnow()
+        db.add(match)
+
+        # 알림 전송
+        cancel_msg = "매칭이 취소되었습니다. 다시 재능 공유를 신청해보세요."
+        db.add(models.Notification(
+            user_id=match.user_a_id,
+            type="MATCH_CANCELED",
+            content=cancel_msg,
+            is_read=False,
+        ))
+        if match.user_b_id:
+            db.add(models.Notification(
+                user_id=match.user_b_id,
+                type="MATCH_CANCELED",
+                content=cancel_msg,
+                is_read=False,
+            ))
+
+        # 매칭 가능 상태 복원
+        user = db.query(models.User).get(current_user.user_id)
+        user.is_matching_available = True
+        db.add(user)
+
+        db.commit()
+
+        return schemas.MatchConsentResponse(
+            result="CANCELED",
+            message="매칭이 취소되었습니다. 다시 재능 공유를 신청해보세요."
+        )
+
+    # ------------------------------
+    # 2) 본인은 O, 상대방은 아직 → 대기
+    # ------------------------------
+    if (match.a_consent == "O" and match.b_consent is None) or \
+       (match.b_consent == "O" and match.a_consent is None):
+
+        return schemas.MatchConsentResponse(
+            result="WAITING",
+            message="상대방의 답변을 기다리고 있어요! 답변이 오면 알려드릴게요."
+        )
+
+    # ------------------------------
+    # 3) 둘 다 O → 최종 확정
+    # ------------------------------
+    if match.a_consent == "O" and match.b_consent == "O":
+        match.status = "FINAL_CONFIRMED"
+        match.confirmed_at = datetime.utcnow()
+        db.add(match)
+
+        # 알림
+        confirm_msg = "매칭이 성공 되었습니다. 지금 바로 쪽지함을 통해 재능을 공유해보세요."
+        db.add(models.Notification(
+            user_id=match.user_a_id,
+            type="MATCH_CONFIRMED",
+            content=confirm_msg,
+            is_read=False,
+        ))
+        db.add(models.Notification(
+            user_id=match.user_b_id,
+            type="MATCH_CONFIRMED",
+            content=confirm_msg,
+            is_read=False,
+        ))
+
+        db.commit()
+
+        return schemas.MatchConsentResponse(
+            result="CONFIRMED",
+            message=confirm_msg
+        )
+
+    # fallback
+    return schemas.MatchConsentResponse(
+        result="OK",
+        message="처리가 완료되었습니다."
+    )

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.db import engine
 from app.models import Base
 from app.routers import auth, users, talents, matches, messages, notifications
-from app.routers.matches import register_periodic_task
+from app.routers.matches import register_match_worker
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -25,4 +25,4 @@ app.include_router(messages.router, prefix="/messages", tags=["messages"])
 app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 
 #워커 등록
-register_periodic_task(app)
+register_match_worker(app)
