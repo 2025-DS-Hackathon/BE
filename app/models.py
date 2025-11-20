@@ -1,5 +1,3 @@
-
-# app/models.py
 from sqlalchemy import (
     Column,
     Integer,
@@ -11,6 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from datetime import datetime
 
 from .db import Base
 
@@ -85,6 +84,23 @@ class Talent(Base):
 # ===========================
 # MATCHING TABLE (Queue)
 # ===========================
+
+class Match(Base):
+    __tablename__ = "matches"
+
+    match_id = Column(Integer, primary_key=True, index=True)
+    user_a_id = Column(Integer, ForeignKey("users.user_id"))
+    user_b_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
+
+    status = Column(String, default="대기")  # 대기 / 합의 / 확정 / 취소
+    requested_at = Column(DateTime, default=datetime.utcnow)
+
+    a_consent = Column(Boolean, default=None)  # True / False / None
+    b_consent = Column(Boolean, default=None)
+
+    shared_category = Column(String, nullable=True)
+
+
 class MatchingQueue(Base):
     __tablename__ = "matching_queue"
 
@@ -113,23 +129,49 @@ class MatchingQueue(Base):
 # ===========================
 # MESSAGE TABLE
 # ===========================
+class ChatRoom(Base):
+    __tablename__ = "chat_rooms"
+
+    room_id = Column(Integer, primary_key=True, index=True)
+    match_id = Column(Integer, ForeignKey("matching_queue.match_id"), unique=True)
+    user_a_id = Column(Integer, ForeignKey("users.user_id"))
+    user_b_id = Column(Integer, ForeignKey("users.user_id"))
+    shared_category = Column(String)
+    last_message_at = Column(DateTime)
+
+    # 관계 설정
+    messages = relationship("Message", back_populates="chat_room")
+
+
 class Message(Base):
     __tablename__ = "messages"
 
     message_id = Column(Integer, primary_key=True, index=True)
-    match_id = Column(Integer, ForeignKey("matching_queue.match_id"), nullable=False)
-    sender_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    room_id = Column(Integer, ForeignKey("chat_rooms.room_id"))
+    sender_id = Column(Integer, ForeignKey("users.user_id"))
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    content = Column(Text, nullable=False)
-    is_read = Column(Boolean, default=False)
-    timestamp = Column(DateTime, server_default=func.now())
+    chat_room = relationship("ChatRoom", back_populates="messages")
+    sender = relationship("User")
 
-    match = relationship("MatchingQueue", back_populates="messages")
-    sender = relationship("User", back_populates="sent_messages")
 
-    def __repr__(self):
-        return f"<Message(id={self.message_id}, match_id={self.match_id})>"
+#class Message(Base):
+#    __tablename__ = "messages"
 
+#    message_id = Column(Integer, primary_key=True, index=True)
+#    match_id = Column(Integer, ForeignKey("matching_queue.match_id"), nullable=False)
+#    sender_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+
+#    content = Column(Text, nullable=False)
+#    is_read = Column(Boolean, default=False)
+#    timestamp = Column(DateTime, server_default=func.now())
+#
+#    match = relationship("MatchingQueue", back_populates="messages")
+#    sender = relationship("User", back_populates="sent_messages")
+#
+#    def __repr__(self):
+#        return f"<Message(id={self.message_id}, match_id={self.match_id})>"
 
 # ===========================
 # NOTIFICATION TABLE

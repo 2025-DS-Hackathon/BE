@@ -2,6 +2,8 @@
 from enum import Enum
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
+from datetime import datetime
+
 
 # ---- User 관련 스키마 ----
 class UserBase(BaseModel):
@@ -139,3 +141,61 @@ class TalentOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+# ----- 매칭 응답  ------        
+class MatchOut(BaseModel):
+    match_id: int
+    user_a_id: int
+    user_b_id: Optional[int]
+    status: str
+    requested_at: datetime
+    a_consent: Optional[bool]
+    b_consent: Optional[bool]
+    shared_category: Optional[str]
+
+    class Config:
+        orm_mode = True
+
+# -----   ------
+class ConsentChoice(str, Enum):
+    YES = "O"
+    NO = "X"
+
+class MatchConsentRequest(BaseModel):
+    choice: ConsentChoice
+
+class MatchConsentResponse(BaseModel):
+    result: str
+    message: str
+    
+#--- 쪽지 ---
+class ChatRoomSummary(BaseModel):
+    room_id: int
+    partner_nickname: str
+    partner_profile_image: Optional[str]
+    last_message: str
+    last_message_time: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+class MessageItem(BaseModel):
+    message_id: int
+    sender_id: int
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChatRoomDetail(BaseModel):
+    room_id: int
+    partner_nickname: str
+    partner_profile_image: Optional[str]
+    shared_category: str
+    messages: List[MessageItem]
+    
+#---- 전송 요청 -----
+class SendMessageRequest(BaseModel):
+    content: str
