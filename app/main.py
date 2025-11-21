@@ -4,6 +4,23 @@ from app.db import engine
 from app.models import Base
 from app.routers import auth, users, talents, matches, messages, notifications
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="Talent Matching API")
+
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 load_dotenv()
 
 app = FastAPI(title="Talent Matching API")
