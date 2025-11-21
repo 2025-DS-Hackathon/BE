@@ -134,8 +134,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
             social_id=kakao_id,
             nickname=nickname,
             email=email,
-            birth_year=birth_year,
-            user_type="UNKNOWN",  
+            birth_year=birth_year, 
             hashed_password=None,
         )
         db.add(user)

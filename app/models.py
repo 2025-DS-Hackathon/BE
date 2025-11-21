@@ -58,8 +58,13 @@ class User(Base):
     talents = relationship(
         "Talent", back_populates="user", cascade="all, delete-orphan"
     )
-    sent_messages = relationship("Message", back_populates="sender")
-    notifications = relationship("Notification", back_populates="user")
+    # 내가 보낸 쪽지들
+    sent_messages = relationship(
+        "Message", back_populates="sender", cascade="all, delete-orphan"
+    )
+    notifications = relationship(
+        "Notification", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<User(id={self.user_id}, nickname={self.nickname})>"
@@ -89,9 +94,8 @@ class Talent(Base):
 
 
 # ===========================
-# MATCHING TABLE (Queue)
+# MATCHING TABLE (기록용)
 # ===========================
-
 class Match(Base):
     __tablename__ = "matches"
 
@@ -108,6 +112,9 @@ class Match(Base):
     shared_category = Column(String, nullable=True)
 
 
+# ===========================
+# MATCHING QUEUE TABLE
+# ===========================
 class MatchingQueue(Base):
     __tablename__ = "matching_queue"
 
@@ -115,8 +122,7 @@ class MatchingQueue(Base):
     user_a_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
     user_b_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
 
-    # PENDING(대기) / CONFIRMED(짝 찾음, 합의 대기) /
-    # SUCCESS(양쪽 O, 최종 매칭) / CANCELED(만료/취소)
+    # PENDING / CONFIRMED / SUCCESS / CANCELED
     status = Column(String, default="PENDING")
     a_consent = Column(Boolean, nullable=True)
     b_consent = Column(Boolean, nullable=True)
@@ -129,6 +135,8 @@ class MatchingQueue(Base):
     # 관계
     user_a = relationship("User", foreign_keys=[user_a_id], backref="matches_as_a")
     user_b = relationship("User", foreign_keys=[user_b_id], backref="matches_as_b")
+
+    # 🔥 MatchingQueue ↔ Message (1 : N)
     messages = relationship(
         "Message", back_populates="match", cascade="all, delete-orphan"
     )
@@ -138,51 +146,36 @@ class MatchingQueue(Base):
 
 
 # ===========================
-# MESSAGE TABLE
+# MESSAGE TABLE (match 기반 쪽지)
 # ===========================
-class ChatRoom(Base):
-    __tablename__ = "chat_rooms"
-
-    room_id = Column(Integer, primary_key=True, index=True)
-    match_id = Column(Integer, ForeignKey("matching_queue.match_id"), unique=True)
-    user_a_id = Column(Integer, ForeignKey("users.user_id"))
-    user_b_id = Column(Integer, ForeignKey("users.user_id"))
-    shared_category = Column(String)
-    last_message_at = Column(DateTime)
-
-    # 관계 설정
-    messages = relationship("Message", back_populates="chat_room")
-
-
 class Message(Base):
     __tablename__ = "messages"
 
     message_id = Column(Integer, primary_key=True, index=True)
-    room_id = Column(Integer, ForeignKey("chat_rooms.room_id"))
-    sender_id = Column(Integer, ForeignKey("users.user_id"))
-    content = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # 어떤 매칭(match)에 대한 메시지인지
+    match_id = Column(
+        Integer,
+        ForeignKey("matching_queue.match_id"),
+        nullable=False,
+    )
+    # 보낸 사람
+    sender_id = Column(
+        Integer,
+        ForeignKey("users.user_id"),
+        nullable=False,
+    )
 
-    chat_room = relationship("ChatRoom", back_populates="messages")
-    sender = relationship("User")
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    timestamp = Column(DateTime, server_default=func.now())
 
+    # 관계
+    match = relationship("MatchingQueue", back_populates="messages")
+    sender = relationship("User", back_populates="sent_messages")
 
-#class Message(Base):
-#    __tablename__ = "messages"
+    def __repr__(self):
+        return f"<Message(id={self.message_id}, match_id={self.match_id})>"
 
-#    message_id = Column(Integer, primary_key=True, index=True)
-#    match_id = Column(Integer, ForeignKey("matching_queue.match_id"), nullable=False)
-#    sender_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
-
-#    content = Column(Text, nullable=False)
-#    is_read = Column(Boolean, default=False)
-#    timestamp = Column(DateTime, server_default=func.now())
-#
-#    match = relationship("MatchingQueue", back_populates="messages")
-#    sender = relationship("User", back_populates="sent_messages")
-#
-#    def __repr__(self):
-#        return f"<Message(id={self.message_id}, match_id={self.match_id})>"
 
 # ===========================
 # NOTIFICATION TABLE
@@ -194,11 +187,11 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
 
     # type 예시:
-    #  - NEW_MESSAGE      : 새 쪽지
-    #  - MATCH_FOUND      : 대기열에서 짝을 찾았을 때 (합의 대기)
-    #  - MATCH_SUCCESS    : 양쪽 O, 최종 매칭 확정
-    #  - MATCH_FAIL       : 24시간 만료로 매칭 실패
-    #  - MATCH_CANCELED   : X 눌러서 매칭 취소
+    #  - NEW_MESSAGE
+    #  - MATCH_FOUND
+    #  - MATCH_SUCCESS
+    #  - MATCH_FAIL
+    #  - MATCH_CANCELED
     type = Column(String, nullable=False)
 
     content = Column(String, nullable=False)
