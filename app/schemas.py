@@ -24,11 +24,12 @@ class UserRead(UserBase):
     social_id: Optional[str] = None
 
     terms_agreed: bool
-    terms_agreed_at: Optional[str] = None
+    terms_agreed_at: Optional[datetime] = None  
     terms_version: str
 
     class Config:
         orm_mode = True
+
 
 
 class Token(BaseModel):

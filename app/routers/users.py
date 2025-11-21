@@ -39,7 +39,15 @@ def update_my_profile(
 
     # 2) 세대 구분 (출생연도 기반)
     current_user.user_type = classify_user_type(profile_in.birth_year)
-
+    
+    # user_type 자동 계산
+    from datetime import datetime
+    current_year = datetime.now().year
+    if current_user.birth_year:
+        age = current_year - current_user.birth_year
+        current_user.user_type = "young" if age < 40 else "senior"
+    else:
+        current_user.user_type = "UNKNOWN"
     # 3) 약관 동의 상태
     if profile_in.terms_agreed:
         current_user.terms_agreed = True

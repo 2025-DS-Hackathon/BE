@@ -1,10 +1,30 @@
+# --- FastAPI 기본 ---
 fastapi
 uvicorn[standard]
+
+# --- ORM / DB ---
 sqlalchemy
+mysql-connector-python
+
+# --- Pydantic ---
 pydantic
 pydantic-settings
+email-validator  # EmailStr 필수
+
+# --- 환경 변수 ---
 python-dotenv
+
+# --- 인증 / JWT ---
+python-jose[cryptography]
 passlib[bcrypt]
+
+# --- 파일 업로드 ---
 python-multipart
+<<<<<<< Updated upstream
 PyJWT
 mysql-connector-python
+=======
+
+# --- HTTP 요청 (카카오 로그인 요청용) ---
+requests
+>>>>>>> Stashed changes
