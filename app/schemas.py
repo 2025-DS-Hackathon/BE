@@ -92,7 +92,7 @@ class TalentCreate(BaseModel):
     description: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class MyTalentSummaryResponse(BaseModel):
@@ -230,3 +230,14 @@ class NotificationOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class MatchDetailResponse(BaseModel):
+    match_id: int
+    # 내 재능 (내가 줄 것)
+    my_talent: Optional[TalentSummary] = None
+    # 상대방 재능 (내가 받을 것)
+    partner_talent: Optional[TalentSummary] = None
+    
+    status: str     # 매칭 상태 (WAITING, ACTIVE 등)
+    partner_nickname: str # 상대방 닉네임

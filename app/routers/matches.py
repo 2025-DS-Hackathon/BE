@@ -12,6 +12,9 @@ from app import models, schemas
 from app.deps import get_db, get_active_user  # 약관 동의 + 로그인된 유저만 매칭 가능
 from app.db import SessionLocal
 
+from app.schemas import MatchDetailResponse, TalentSummary # TalentSummary import 확인 필요
+from app.models import Talent # 모델 필요
+
 router = APIRouter()
 
 # ------------------------------
@@ -244,6 +247,81 @@ def create_match_found_notifications(
     db.add(notif_b)
     db.commit()
 
+# ==========================================
+# [추가] 2.5) 매칭 상세 정보 조회 (상대방 재능 확인용)
+# ==========================================
+@router.get("/{match_id}", response_model=schemas.MatchDetailResponse)
+def get_match_detail(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_active_user),
+):
+    # 1. 매칭 정보 찾기
+    match = db.query(models.MatchingQueue).filter(models.MatchingQueue.match_id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
+
+    # 2. 파트너 식별
+    my_id = current_user.user_id
+    if match.user_b_id is None:
+        partner_id = my_id 
+        partner_nickname = f"{current_user.nickname} (가상 파트너)"
+    else:
+        if match.user_a_id == my_id:
+            partner_id = match.user_b_id
+        elif match.user_b_id == my_id:
+            partner_id = match.user_a_id
+        else:
+            raise HTTPException(status_code=403, detail="이 매칭의 참여자가 아닙니다.") 
+        partner_user = db.query(models.User).filter(models.User.user_id == partner_id).first()
+        partner_nickname = partner_user.nickname if partner_user else "알 수 없음"
+
+    # 3. 재능 정보 가져오기
+    my_talent_db = db.query(models.Talent).filter(
+        models.Talent.user_id == my_id, 
+        models.Talent.type.ilike("Teach") 
+    ).first()
+
+    partner_talent_db = db.query(models.Talent).filter(
+        models.Talent.user_id == partner_id, 
+        models.Talent.type.ilike("Teach")
+    ).first()
+
+    # 🔥 [수정 핵심] 자동 변환 대신 '수동 생성'으로 에러 방지
+    my_talent_dto = None
+    if my_talent_db:
+        # DB에 'id'로 저장되어 있든 'talent_id'로 저장되어 있든 안전하게 가져옴
+        tid = getattr(my_talent_db, "talent_id", getattr(my_talent_db, "id", 0))
+        
+        my_talent_dto = schemas.TalentSummary(
+            talent_id=tid,
+            type=my_talent_db.type,
+            category=my_talent_db.category,
+            title=my_talent_db.title,
+            description=my_talent_db.description,
+            tags=my_talent_db.tags
+        )
+
+    partner_talent_dto = None
+    if partner_talent_db:
+        tid = getattr(partner_talent_db, "talent_id", getattr(partner_talent_db, "id", 0))
+        
+        partner_talent_dto = schemas.TalentSummary(
+            talent_id=tid,
+            type=partner_talent_db.type,
+            category=partner_talent_db.category,
+            title=partner_talent_db.title,
+            description=partner_talent_db.description,
+            tags=partner_talent_db.tags
+        )
+
+    return schemas.MatchDetailResponse(
+        match_id=match.match_id,
+        my_talent=my_talent_dto,
+        partner_talent=partner_talent_dto,
+        status=match.status,
+        partner_nickname=partner_nickname
+    )
 
 # ------------------------------
 # 3) 합의(O/X) 처리 → SUCCESS / CANCELED
