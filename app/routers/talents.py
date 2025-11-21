@@ -7,12 +7,8 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.deps import get_db, get_current_user
 
-<<<<<<< Updated upstream
-router = APIRouter(prefix="/talents", tags=["Talents"])
-=======
 # 팀원 코드까지 합쳐서 prefix / tags 넣은 버전
 router = APIRouter(prefix="/talents", tags=["talents"])
->>>>>>> Stashed changes
 
 
 @router.get("/ping")

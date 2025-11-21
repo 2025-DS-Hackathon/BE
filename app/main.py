@@ -33,9 +33,4 @@ app.include_router(matches.router, prefix="/matches", tags=["matches"])
 app.include_router(messages.router, prefix="/messages", tags=["messages"])
 app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 
-<<<<<<< Updated upstream
-#워커 등록
 register_periodic_task(app)
-=======
-register_periodic_task(app)
->>>>>>> Stashed changes
