@@ -1,5 +1,7 @@
 # app/routers/auth.py  (카카오 단일 로그인 버전)
 
+# app/routers/auth.py  (카카오 단일 로그인 버전)
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -9,6 +11,7 @@ import requests  # pip install requests
 
 from dotenv import load_dotenv
 load_dotenv()
+
 
 from app import models, schemas
 from app.deps import get_db, create_access_token
@@ -112,7 +115,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
     kakao_account = kakao_user.get("kakao_account", {}) or {}
     profile = kakao_account.get("profile", {}) or {}
 
-    email = kakao_account.get("email")  # 이메일 동의 안 하면 None일 수 있음
+    # email = kakao_account.get("email")  # 이메일 동의 안 하면 None일 수 있음
     nickname = profile.get("nickname") or "카카오유저"
     # 카카오에서 birthyear를 scope로 받을 수도 있지만, 기본은 None 처리
     birth_year = None
@@ -133,8 +136,8 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
             social_provider="kakao",
             social_id=kakao_id,
             nickname=nickname,
-            email=email,
-            birth_year=birth_year,
+            # email=email,
+            # birth_year=birth_year,
             user_type="YOUNG",  # 기본값, 나중에 프로필 수정으로 변경 가능
             # 카카오 단일 로그인이라 비밀번호는 사용 X
             hashed_password=None,
@@ -149,4 +152,53 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
     return schemas.Token(
         access_token=access_token,
         token_type="bearer",
+    )
+# ---------- 3) 프론트가 카카오 정보를 직접 보내는 방식 (POST) ----------
+@router.post("/kakao/callback", response_model=schemas.Token)
+def kakao_callback_direct(payload: dict, db: Session = Depends(get_db)):
+    """
+    프론트에서 kakaoLogin()으로 받아온 사용자 정보를 직접 전달하는 방식.
+    code 없이 바로 회원 생성 + JWT 발급.
+    """
+    kakao_id = str(payload.get("kakao_id"))
+    # email = payload.get("email")
+    nickname = payload.get("nickname")
+    # birthyear = payload.get("birthyear")
+
+    if not kakao_id:
+        raise HTTPException(
+            status_code=400,
+            detail="kakao_id가 전달되지 않았습니다."
+        )
+
+    # DB에서 유저 조회
+    user = (
+        db.query(models.User)
+        .filter(
+            models.User.social_provider == "kakao",
+            models.User.social_id == kakao_id
+        )
+        .first()
+    )
+
+    # 없다면 자동 회원가입
+    if not user:
+        user = models.User(
+            social_provider="kakao",
+            social_id=kakao_id,
+            # email=email,
+            nickname=nickname or "카카오유저",
+            # birth_year=birthyear,
+            user_type="YOUNG"
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # JWT 토큰 생성
+    access_token = create_access_token(data={"sub": str(user.user_id)})
+
+    return schemas.Token(
+        access_token=access_token,
+        token_type="bearer"
     )
