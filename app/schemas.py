@@ -3,8 +3,6 @@ from enum import Enum
 from typing import Optional, List
 
 from pydantic import BaseModel, EmailStr, Field, validator
-from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
 from datetime import datetime
 
 
@@ -78,9 +76,6 @@ class NotificationUnreadCount(BaseModel):
 class TalentSummary(BaseModel):
     talent_id: int
     type: str
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
 
 # --- Talent ---
 class TalentCreate(BaseModel):
@@ -224,6 +219,31 @@ class MatchOut(BaseModel):
     class Config:
         orm_mode = True
 
+# ----- 매칭 성공/실패  ------
+class ConsentChoice(str, Enum):
+    YES = "O"
+    NO = "X"    
+
+class MatchConsentRequest(BaseModel):
+    choice: ConsentChoice
+
+class MatchConsentResponse(BaseModel):
+    result: str
+    message: str
+
+class ChatSummary(BaseModel):
+    match_id: int
+    partner_id: int
+    partner_nickname: str
+    partner_profile_image: Optional[str] = None
+    shared_category: Optional[str] = None
+    last_message: Optional[str] = None
+    last_message_time: Optional[datetime] = None
+    unread_count: int = 0
+
+    class Config:
+        orm_mode = True
+
 # --- Message ---
 class MessageCreate(BaseModel):
     match_id: int
@@ -239,6 +259,26 @@ class MessageOut(BaseModel):
 
     class Config:
         orm_mode = True
+        
+class MessageItem(BaseModel):
+    message_id: int
+    sender_id: int
+    content: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+    
+#---- 메세지 전송 요청 / 응답 -----
+class SendMessageRequest(BaseModel):
+    content: str
+    
+class SendMessageResponse(BaseModel):
+    message: MessageOut
+
+    class Config:
+        orm_mode = True
 
 # --- Notification ---
 class NotificationOut(BaseModel):
@@ -251,46 +291,15 @@ class NotificationOut(BaseModel):
 
     class Config:
         orm_mode = True
-# -----   ------
-class ConsentChoice(str, Enum):
-    YES = "O"
-    NO = "X"
 
-class MatchConsentRequest(BaseModel):
-    choice: ConsentChoice
+# ---- 신고 ----
+class ReportCreate(BaseModel):
+    reported_id: int
+    match_id: int
+    reason: str
+    description: str | None = None
 
-class MatchConsentResponse(BaseModel):
-    result: str
-    message: str
-    
-#--- 쪽지 ---
-class ChatRoomSummary(BaseModel):
-    room_id: int
-    partner_nickname: str
-    partner_profile_image: Optional[str]
-    last_message: str
-    last_message_time: Optional[datetime]
+class ReportRequest(BaseModel):
+    reason: str
+    description: Optional[str] = None
 
-    class Config:
-        from_attributes = True
-
-class MessageItem(BaseModel):
-    message_id: int
-    sender_id: int
-    content: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class ChatRoomDetail(BaseModel):
-    room_id: int
-    partner_nickname: str
-    partner_profile_image: Optional[str]
-    shared_category: str
-    messages: List[MessageItem]
-    
-#---- 전송 요청 -----
-class SendMessageRequest(BaseModel):
-    content: str

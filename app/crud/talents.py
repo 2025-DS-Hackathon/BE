@@ -7,12 +7,13 @@ from app import models, schemas
 def create_talent(db: Session, talent: schemas.TalentCreate, user_id: int):
     db_talent = models.Talent(
         user_id=user_id,
-        type=talent.type,
-        category=talent.category,
+        type=talent.type.value,
+        category=talent.category.value,
         title=talent.title,
         tags=talent.tags,
         description=talent.description
     )
+
     db.add(db_talent)
     db.commit()
     db.refresh(db_talent)
