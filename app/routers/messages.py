@@ -1,4 +1,3 @@
-# app/routers/messages.py
 from fastapi import APIRouter
 
 router = APIRouter()

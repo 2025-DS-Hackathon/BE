@@ -1,4 +1,3 @@
-# app/routers/notifications.py
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,17 +10,13 @@ router = APIRouter()
 
 
 # ------------------------------
-# 1) 내 알림 리스트 조회
+# 내 알림 리스트 조회
 # ------------------------------
 @router.get("/", response_model=List[schemas.NotificationRead])
 def list_notifications(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    현재 로그인한 사용자의 알림 목록 조회
-    - 기본: 최신 순 정렬
-    """
     notifications = (
         db.query(models.Notification)
         .filter(models.Notification.user_id == current_user.user_id)
@@ -32,16 +27,13 @@ def list_notifications(
 
 
 # ------------------------------
-# 2) 안 읽은 알림 개수 조회 (헤더 뱃지용)
+# 안 읽은 알림 개수 조회
 # ------------------------------
 @router.get("/unread-count", response_model=schemas.NotificationUnreadCount)
 def get_unread_count(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    헤더 뱃지 표시용: 읽지 않은(is_read=False) 알림 개수 반환
-    """
     count = (
         db.query(models.Notification)
         .filter(
@@ -54,17 +46,13 @@ def get_unread_count(
 
 
 # ------------------------------
-# 3) 알림 전체 읽음 처리 (알림 페이지 진입 시)
+# 알림 전체 읽음 처리 
 # ------------------------------
 @router.patch("/mark-all-read", response_model=schemas.NotificationUnreadCount)
 def mark_all_read(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    알림 페이지를 열었을 때 한 번 호출:
-    - 해당 사용자의 모든 미확인(is_read=False) 알림을 읽음 상태로 변경
-    """
     (
         db.query(models.Notification)
         .filter(
@@ -74,12 +62,11 @@ def mark_all_read(
         .update({models.Notification.is_read: True})
     )
     db.commit()
-    # 모두 읽음 처리했으니 항상 0 반환
     return schemas.NotificationUnreadCount(unread_count=0)
 
 
 # ------------------------------
-# 4) 단일 알림 읽음 처리 (알림 하나 클릭했을 때)
+# 단일 알림 읽음 처리 
 # ------------------------------
 @router.patch("/{notif_id}/read", response_model=schemas.NotificationRead)
 def mark_notification_read(
@@ -87,10 +74,6 @@ def mark_notification_read(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """
-    특정 알림을 읽음 상태로 변경
-    - 사용자가 알림을 클릭했을 때 호출
-    """
     notif = (
         db.query(models.Notification)
         .filter(

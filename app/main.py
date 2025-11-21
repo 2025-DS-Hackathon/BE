@@ -11,7 +11,6 @@ load_dotenv()
 
 app = FastAPI(title="Talent Matching API")
 
-# 🔥 CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -1,4 +1,3 @@
-# app/routers/matches.py
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -12,20 +11,19 @@ from app import models, schemas
 from app.deps import get_db, get_active_user  # 약관 동의 + 로그인된 유저만 매칭 가능
 from app.db import SessionLocal
 
-from app.schemas import MatchDetailResponse, TalentSummary # TalentSummary import 확인 필요
-from app.models import Talent # 모델 필요
+from app.schemas import MatchDetailResponse, TalentSummary 
+from app.models import Talent 
 
 router = APIRouter()
 
 # ------------------------------
-# 1) 랜덤 매칭 시작 (MAIN-2310, 2320)
+# 랜덤 매칭 시작
 # ------------------------------
 @router.post("/start", response_model=schemas.MatchStartResponse)
 def start_matching(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_active_user),
 ):
-    # 중년 유저는 서비스 대상 아님
     if current_user.user_type == "MIDDLE":
         return schemas.MatchStartResponse(
             result=schemas.MatchStartResult.MIDDLE_USER,
@@ -127,7 +125,7 @@ def start_matching(
 
 
 # ------------------------------
-# 2) 매칭 알고리즘 1회 실행 (MAIN-2321, 2322)
+# 매칭 알고리즘 1회 실행
 # ------------------------------
 def run_matching_once(db: Session) -> None:
     pending_entries: List[models.MatchingQueue] = (
@@ -193,7 +191,6 @@ def run_matching_once(db: Session) -> None:
 
             # 매칭 조건
             if (a_learn == b_teach) and (user_a.user_type != user_b.user_type):
-                # A row를 최종 매칭 row로 사용
                 a_entry.user_b_id = user_b.user_id
                 a_entry.status = "CONFIRMED"
                 a_entry.shared_category = a_learn
@@ -201,14 +198,12 @@ def run_matching_once(db: Session) -> None:
                 a_entry.a_consent = None
                 a_entry.b_consent = None
 
-                # B row는 취소
                 b_entry.status = "CANCELED"
                 b_entry.canceled_at = datetime.utcnow()
 
                 db.add(a_entry)
                 db.add(b_entry)
 
-                # ✅ MATCH_FOUND 알림 생성
                 create_match_found_notifications(db, a_entry, user_a, user_b)
 
                 used.add(a_entry.match_id)
@@ -248,7 +243,7 @@ def create_match_found_notifications(
     db.commit()
 
 # ==========================================
-# [추가] 2.5) 매칭 상세 정보 조회 (상대방 재능 확인용)
+# 매칭 상세 정보 조회
 # ==========================================
 @router.get("/{match_id}", response_model=schemas.MatchDetailResponse)
 def get_match_detail(
@@ -256,12 +251,12 @@ def get_match_detail(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_active_user),
 ):
-    # 1. 매칭 정보 찾기
+    # 매칭 정보 찾기
     match = db.query(models.MatchingQueue).filter(models.MatchingQueue.match_id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
-    # 2. 파트너 식별
+    # 파트너 식별
     my_id = current_user.user_id
     if match.user_b_id is None:
         partner_id = my_id 
@@ -276,7 +271,7 @@ def get_match_detail(
         partner_user = db.query(models.User).filter(models.User.user_id == partner_id).first()
         partner_nickname = partner_user.nickname if partner_user else "알 수 없음"
 
-    # 3. 재능 정보 가져오기
+    # 재능 정보 가져오기
     my_talent_db = db.query(models.Talent).filter(
         models.Talent.user_id == my_id, 
         models.Talent.type.ilike("Teach") 
@@ -287,10 +282,8 @@ def get_match_detail(
         models.Talent.type.ilike("Teach")
     ).first()
 
-    # 🔥 [수정 핵심] 자동 변환 대신 '수동 생성'으로 에러 방지
     my_talent_dto = None
     if my_talent_db:
-        # DB에 'id'로 저장되어 있든 'talent_id'로 저장되어 있든 안전하게 가져옴
         tid = getattr(my_talent_db, "talent_id", getattr(my_talent_db, "id", 0))
         
         my_talent_dto = schemas.TalentSummary(
@@ -324,7 +317,7 @@ def get_match_detail(
     )
 
 # ------------------------------
-# 3) 합의(O/X) 처리 → SUCCESS / CANCELED
+# 3) 합의(O/X) 처리
 #    (MATCH_SUCCESS / MATCH_CANCELED 알림)
 # ------------------------------
 @router.post("/{match_id}/agreement", response_model=schemas.MatchAgreementResponse)
@@ -431,7 +424,7 @@ def notify_match_canceled(db: Session, match: models.MatchingQueue) -> None:
 
 
 # ------------------------------
-# 4) 24시간 만료 처리 (MATCH_FAIL)
+# 24시간 만료 처리 
 # ------------------------------
 def expire_old_matches(db: Session) -> None:
     now = datetime.utcnow()
@@ -470,7 +463,7 @@ def expire_old_matches(db: Session) -> None:
 
 
 # ------------------------------
-# 5) 오늘 매칭 통계 (MAIN-2400)
+# 오늘 매칭 통계
 # ------------------------------
 @router.get("/stats/today", response_model=schemas.TodayMatchStats)
 def get_today_stats(
@@ -496,7 +489,7 @@ def get_today_stats(
 
 
 # ------------------------------
-# 6) 주기적 작업 등록 (run_matching_once + expire_old_matches)
+# 주기적 작업 등록 
 # ------------------------------
 def register_periodic_task(app: FastAPI) -> None:
     def worker():

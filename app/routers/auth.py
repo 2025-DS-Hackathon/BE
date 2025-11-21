@@ -22,7 +22,7 @@ print("DEBUG KAKAO_CLIENT_ID:", KAKAO_CLIENT_ID)
 print("DEBUG KAKAO_REDIRECT_URI:", KAKAO_REDIRECT_URI)
 
 
-# ---------- 1) 카카오 로그인 URL 제공 ----------
+# 카카오 로그인 URL
 @router.get("/kakao/login")
 def kakao_login_url():
     base_url = "https://kauth.kakao.com/oauth/authorize"
@@ -36,7 +36,7 @@ def kakao_login_url():
     return {"auth_url": kakao_auth_url}
 
 
-# ---------- 2) 카카오 콜백 ----------
+# 카카오 콜백
 @router.get("/kakao/callback")
 def kakao_callback(code: str, db: Session = Depends(get_db)):
 
@@ -46,7 +46,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
             detail="인가 코드(code)가 없습니다.",
         )
 
-    # 1) code → access_token
+    # access_token
     token_url = "https://kauth.kakao.com/oauth/token"
     data = {
         "grant_type": "authorization_code",
@@ -65,7 +65,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
     if not kakao_access_token:
         raise HTTPException(status_code=400, detail="카카오 액세스 토큰 없음")
 
-    # 2) 사용자 정보 조회
+    # 사용자 정보 조회
     user_info_res = requests.get(
         "https://kapi.kakao.com/v2/user/me",
         headers={"Authorization": f"Bearer {kakao_access_token}"},
@@ -84,7 +84,7 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
     email = kakao_account.get("email")
     nickname = profile.get("nickname") or "카카오유저"
 
-    # 3) DB 처리
+    # DB
     user = (
         db.query(models.User)
         .filter(
@@ -107,9 +107,9 @@ def kakao_callback(code: str, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    # 4) 서비스용 JWT 발급
+    # JWT 발급
     service_token = create_access_token(data={"sub": str(user.user_id)})
 
-    # 🔥 5) React로 리다이렉트
+    # React 리다이렉트
     redirect_url = f"http://localhost:3000/auth/kakao/callback?token={service_token}"
     return RedirectResponse(url=redirect_url)
