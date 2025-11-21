@@ -303,3 +303,10 @@ class ReportRequest(BaseModel):
     reason: str
     description: Optional[str] = None
 
+# --- Block ---
+class BlockResponse(BaseModel):
+    result: str
+    message: str
+
+    class Config:
+        orm_mode = True
