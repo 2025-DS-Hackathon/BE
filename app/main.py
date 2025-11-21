@@ -18,7 +18,7 @@ def read_root():
 #  라우터 등록
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/users", tags=["users"])
-app.include_router(talents.router, prefix="/talents", tags=["talents"])
+app.include_router(talents.router, tags=["talents"])
 app.include_router(matches.router, prefix="/matches", tags=["matches"])
 app.include_router(messages.router, prefix="/messages", tags=["messages"])
 app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
