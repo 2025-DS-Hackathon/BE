@@ -74,7 +74,11 @@ class NotificationUnreadCount(BaseModel):
 # ===========================
 class TalentSummary(BaseModel):
     talent_id: int
-    type: str
+    type: str       
+    category: str   
+    title: str     
+    tags: Optional[str] = None 
+    description: str
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
