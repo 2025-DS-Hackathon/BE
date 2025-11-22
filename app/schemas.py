@@ -100,9 +100,8 @@ class MyTalentSummaryResponse(BaseModel):
     teach: Optional[TalentSummary] = None
 
 
-# ===========================
+
 # MATCHING 관련 스키마
-# ===========================
 class MatchStartResult(str, Enum):
     QUEUED = "QUEUED"
     ALREADY_WAITING = "ALREADY_WAITING"
@@ -151,7 +150,7 @@ class TalentCreate(BaseModel):
     type: TalentType
     category: TalentCategory
     title: str = Field(..., min_length=1)
-    tags: Optional[str] = None  # 쉼표로 구분된 최대 3개 키워드
+    tags: Optional[str] = None 
     description: Optional[str] = Field(default=None, max_length=300)
 
     @validator("tags")
@@ -182,12 +181,9 @@ class TalentOut(TalentCreate):
 
 # --- Matching ---
 class MatchRequestIn(BaseModel):
-    # 요청할 때 사용자의 'learn' 카테고리를 명시 (UI에선 사용자가 이미 등록한 값 사용)
-    # 그러나 서버에서는 DB에서 확인; 이 필드는 선택적 보조용.
     desired_category: Optional[str] = None
 
 class MatchAnswerIn(BaseModel):
-    # 현재 사용자가 선택한 동의 여부 (O -> true, X -> false)
     consent: bool
 
 class MatchOut(BaseModel):

@@ -38,7 +38,8 @@ def kakao_login_url():
 
 # 카카오 콜백
 @router.get("/kakao/callback")
-def kakao_callback(code: str, db: Session = Depends(get_db)):
+def kakao_callback(code: Optional[str] = None,  
+    db: Session = Depends(get_db)):
 
     if not code:
         raise HTTPException(
