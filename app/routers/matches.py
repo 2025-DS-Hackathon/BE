@@ -245,77 +245,79 @@ def create_match_found_notifications(
 # ==========================================
 # 매칭 상세 정보 조회
 # ==========================================
+
 @router.get("/{match_id}", response_model=schemas.MatchDetailResponse)
 def get_match_detail(
     match_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_active_user),
 ):
-    # 매칭 정보 찾기
     match = db.query(models.MatchingQueue).filter(models.MatchingQueue.match_id == match_id).first()
     if not match:
         raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
-    # 파트너 식별
+    # 1. 파트너 식별
     my_id = current_user.user_id
     if match.user_b_id is None:
-        partner_id = my_id 
-        partner_nickname = f"{current_user.nickname} (가상 파트너)"
+        partner_id = my_id # 에러 방지용
+        partner_nickname = "알 수 없음"
     else:
-        if match.user_a_id == my_id:
-            partner_id = match.user_b_id
-        elif match.user_b_id == my_id:
-            partner_id = match.user_a_id
-        else:
-            raise HTTPException(status_code=403, detail="이 매칭의 참여자가 아닙니다.") 
+        partner_id = match.user_b_id if match.user_a_id == my_id else match.user_a_id
         partner_user = db.query(models.User).filter(models.User.user_id == partner_id).first()
         partner_nickname = partner_user.nickname if partner_user else "알 수 없음"
 
-    # 재능 정보 가져오기
-    my_talent_db = db.query(models.Talent).filter(
-        models.Talent.user_id == my_id, 
-        models.Talent.type.ilike("Teach") 
-    ).first()
+    # ==================================================
+    # 헬퍼 함수: (메인 재능 1개 + 랜덤 1개) 가져오기
+    # ==================================================
+    def get_two_talents(uid, talent_type):
+        # 1. 전체 Teach 재능 다 가져오기
+        all_list = db.query(models.Talent).filter(
+            models.Talent.user_id == uid, 
+            models.Talent.type.ilike(talent_type)
+        ).all()
 
-    partner_talent_db = db.query(models.Talent).filter(
-        models.Talent.user_id == partner_id, 
-        models.Talent.type.ilike("Teach")
-    ).first()
+        if not all_list:
+            return []
 
-    my_talent_dto = None
-    if my_talent_db:
-        tid = getattr(my_talent_db, "talent_id", getattr(my_talent_db, "id", 0))
+        # 2. 우선순위: '요리'나 '키오스크' 같은 메인 키워드가 있으면 그걸 1번으로
+        # (여기선 단순히 첫 번째 등록한걸 메인으로 칩니다)
+        main_talent = all_list[0] 
         
-        my_talent_dto = schemas.TalentSummary(
-            talent_id=tid,
-            type=my_talent_db.type,
-            category=my_talent_db.category,
-            title=my_talent_db.title,
-            description=my_talent_db.description,
-            tags=my_talent_db.tags
-        )
+        results = [main_talent]
 
-    partner_talent_dto = None
-    if partner_talent_db:
-        tid = getattr(partner_talent_db, "talent_id", getattr(partner_talent_db, "id", 0))
+        # 3. 하나 더 추가 (메인 제외하고 아무거나 하나)
+        if len(all_list) > 1:
+            # 0번 인덱스(메인) 제외하고 나머지 중에 하나 뽑기
+            extra = all_list[1] 
+            results.append(extra)
         
-        partner_talent_dto = schemas.TalentSummary(
-            talent_id=tid,
-            type=partner_talent_db.type,
-            category=partner_talent_db.category,
-            title=partner_talent_db.title,
-            description=partner_talent_db.description,
-            tags=partner_talent_db.tags
-        )
+        # DTO 변환
+        summary_list = []
+        for t in results:
+            tid = getattr(t, "talent_id", getattr(t, "id", 0))
+            summary_list.append(schemas.TalentSummary(
+                talent_id=tid,
+                type=t.type,
+                category=t.category,
+                title=t.title,
+                description=t.description,
+                tags=t.tags
+            ))
+        return summary_list
+
+    # 내 재능들 (Teach)
+    my_talents_list = get_two_talents(my_id, "Teach")
+    
+    # 파트너 재능들 (Teach) -> 나한테는 배움이 됨
+    partner_talents_list = get_two_talents(partner_id, "Teach")
 
     return schemas.MatchDetailResponse(
         match_id=match.match_id,
-        my_talent=my_talent_dto,
-        partner_talent=partner_talent_dto,
+        my_talents=my_talents_list,          # 리스트 반환
+        partner_talents=partner_talents_list, # 리스트 반환
         status=match.status,
         partner_nickname=partner_nickname
     )
-
 # ------------------------------
 # 3) 합의(O/X) 처리
 #    (MATCH_SUCCESS / MATCH_CANCELED 알림)
@@ -367,6 +369,16 @@ def submit_agreement(
     # 양쪽 모두 O를 누른 경우 → SUCCESS
     if match.a_consent and match.b_consent:
         match.status = "SUCCESS"
+        sender_id = match.user_b_id if match.user_a_id == current_user.user_id else match.user_a_id
+        system_msg = models.Message(
+            match_id=match.match_id,
+            sender_id=match.user_b_id, 
+            content="매칭이 성사되었습니다! 대화를 시작해보세요.",
+            is_read=False,
+            timestamp=datetime.utcnow() + timedelta(hours=9)
+        )
+        db.add(system_msg)
+
         db.add(match)
         db.commit()
         notify_match_success(db, match)

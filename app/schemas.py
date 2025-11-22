@@ -278,9 +278,9 @@ class NotificationOut(BaseModel):
 class MatchDetailResponse(BaseModel):
     match_id: int
     # 내 재능 (내가 줄 것)
-    my_talent: Optional[TalentSummary] = None
+    my_talents: List[TalentSummary] = []
     # 상대방 재능 (내가 받을 것)
-    partner_talent: Optional[TalentSummary] = None
+    partner_talents: List[TalentSummary] = []
     
     status: str     # 매칭 상태 (WAITING, ACTIVE 등)
     partner_nickname: str # 상대방 닉네임
