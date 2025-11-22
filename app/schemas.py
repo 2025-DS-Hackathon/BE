@@ -213,8 +213,8 @@ class MatchConsentResponse(BaseModel):
 class ChatSummary(BaseModel):
     match_id: int
     partner_id: int
-    partner_nickname: str  # <--- 여기가 필수(required)인데 null이 들어오면 422 발생
-    partner_profile_image: Optional[str] = None # Optional인지 확인
+    partner_nickname: str 
+    partner_profile_image: Optional[str] = None
     shared_category: Optional[str] = None
     last_message: Optional[str] = None
     last_message_time: Optional[datetime] = None
@@ -246,6 +246,7 @@ class MessageItem(BaseModel):
     sender_id: int
     content: str
     timestamp: datetime
+    is_read: bool = False
 
     class Config:
         orm_mode = True
@@ -295,10 +296,6 @@ class ReportRequest(BaseModel):
     reason: str
     description: Optional[str] = None
 
-# --- Block ---
 class BlockResponse(BaseModel):
     result: str
     message: str
-
-    class Config:
-        orm_mode = True

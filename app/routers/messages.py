@@ -1,5 +1,4 @@
-# app/routers/messages.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +7,8 @@ from sqlalchemy import or_, desc
 
 from app import models, schemas
 from app.deps import get_db, get_active_user
+
+
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -150,6 +151,7 @@ def send_message(match_id: int, req: schemas.SendMessageRequest, db: Session = D
         sender_id=current_user.user_id,
         content=req.content,
         is_read=False,
+        timestamp=datetime.utcnow() + timedelta(hours=9)
     )
     db.add(msg)
 
@@ -160,15 +162,15 @@ def send_message(match_id: int, req: schemas.SendMessageRequest, db: Session = D
         content=f"{current_user.nickname}님으로부터 새로운 쪽지가 도착했습니다.",
         link_path=f"/messages/{match_id}",
         is_read=False,
+        timestamp=datetime.now()
     )
-    db.add(notif)
+    db.add(msg)
 
     # DB 반영
     db.commit()
     db.refresh(msg)
 
-    # 응답 (schemas.SendMessageResponse 가 정의되어 있어야 함)
-    return schemas.SendMessageResponse(message=msg)
+    return {"message": msg}
 
 
 # --- 신고 처리 ---
