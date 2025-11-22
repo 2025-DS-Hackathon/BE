@@ -10,7 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-
+from datetime import datetime
 from .db import Base
 
 
@@ -148,3 +148,28 @@ class Notification(Base):
 
     def __repr__(self):
         return f"<Notification(id={self.notif_id}, user_id={self.user_id}, type={self.type})>"
+    
+
+
+# ===========================
+# 매칭 차단
+# ===========================
+class Block(Base):
+    __tablename__ = "blocks"
+
+    block_id = Column(Integer, primary_key=True, index=True)
+    blocker_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+    blocked_id = Column(Integer, ForeignKey("users.user_id"), nullable=False)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    report_id = Column(Integer, primary_key=True, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.user_id"))
+    reported_id = Column(Integer, ForeignKey("users.user_id"))
+    match_id = Column(Integer, ForeignKey("matching_queue.match_id"))
+    reason = Column(String, nullable=False)
+    description = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)

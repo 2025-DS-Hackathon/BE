@@ -199,6 +199,32 @@ class MatchOut(BaseModel):
     class Config:
         orm_mode = True
 
+class ConsentChoice(str, Enum):
+    YES = "O"
+    NO = "X"    
+
+class MatchConsentRequest(BaseModel):
+    choice: ConsentChoice
+
+class MatchConsentResponse(BaseModel):
+    result: str
+    message: str
+
+class ChatSummary(BaseModel):
+    match_id: int
+    partner_id: int
+    partner_nickname: str  # <--- 여기가 필수(required)인데 null이 들어오면 422 발생
+    partner_profile_image: Optional[str] = None # Optional인지 확인
+    shared_category: Optional[str] = None
+    last_message: Optional[str] = None
+    last_message_time: Optional[datetime] = None
+    unread_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+        
 # --- Message ---
 class MessageCreate(BaseModel):
     match_id: int
@@ -214,6 +240,26 @@ class MessageOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+class MessageItem(BaseModel):
+    message_id: int
+    sender_id: int
+    content: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+class SendMessageRequest(BaseModel):
+    content: str
+    
+class SendMessageResponse(BaseModel):
+    message: MessageOut
+
+    class Config:
+        orm_mode = True
+
+
 
 # --- Notification ---
 class NotificationOut(BaseModel):
@@ -237,3 +283,22 @@ class MatchDetailResponse(BaseModel):
     
     status: str     # 매칭 상태 (WAITING, ACTIVE 등)
     partner_nickname: str # 상대방 닉네임
+
+# ---- 신고 ----
+class ReportCreate(BaseModel):
+    reported_id: int
+    match_id: int
+    reason: str
+    description: str | None = None
+
+class ReportRequest(BaseModel):
+    reason: str
+    description: Optional[str] = None
+
+# --- Block ---
+class BlockResponse(BaseModel):
+    result: str
+    message: str
+
+    class Config:
+        orm_mode = True
